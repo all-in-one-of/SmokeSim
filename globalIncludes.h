@@ -16,3 +16,12 @@
 
 // to switch between double and float
 typedef float fReal;
+
+enum gridType { SMOKE, SOLID };
+
+// Linear interpolation
+// TODO cubic interpolation
+fReal Lerp(const fReal &fromEndPoint, const fReal &toEndPoint, fReal ratio)
+{
+    return (1.0 - ratio) * fromEndPoint + ratio * toEndPoint;
+}

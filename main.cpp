@@ -9,6 +9,8 @@ const size_t Nz = 50;
 fReal h = 0.1;
 
 /* time step and frame rate */
+/* CFL condition: dt <= 5*dx / u_max */
+/* dt < DT */
 const float dt = 0.005;
 const float DT = 1.0 / 24.0;
 const size_t frames = 50;
