@@ -8,8 +8,10 @@ if(CREATE_LOCAL_MAKEFILES)
 endif()
 
 add_cispba_executable(SmokeSim main.cpp
-        )
+                    globalIncludes.h
+                    smokeSolver.h
+                    smokeQuantity.h)
         
-target_include_directories(FEM SYSTEM PUBLIC ${EIGEN3_INCLUDE_DIR})
+target_include_directories(SmokeSim SYSTEM PUBLIC ${EIGEN3_INCLUDE_DIR})
 set(CMAKE_CXX_FLAGS "-O3")
 target_link_libraries(SmokeSim partio)
