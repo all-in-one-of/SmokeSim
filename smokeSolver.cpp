@@ -5,6 +5,7 @@
 SmokeSolver::SmokeSolver(size_t Nx, size_t Ny, size_t Nz, fReal h) :
                         Nx(Nx), Ny(Ny), Nz(Nz), h(h)
 {
+    // switch back to centered grid TODO!!
     addFaceAttr("u", 0.0, 0.5, 0.5);
     addFaceAttr("v", 0.5, 0.0, 0.5);
     addFaceAttr("w", 0.5, 0.5, 0.0);

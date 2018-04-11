@@ -68,20 +68,18 @@ size_t KaminoQuantity::getIndex(size_t x, size_t y, size_t z)
     return z * (Nx * Ny) + y * (Nx) + x;
 }
 
-/* trilinear interpolation for now */
 fReal SmokeQuantity::sampleAt(fReal x, fReal y, fReal z)
 {
-    int phiIndex = std::floor(x * invGridLen - this->xOffset);
-    int thetaIndex = std::floor(y * invGridLen - this->yOffset);
+    int xIndex = std::floor(x * invH - this->xOffset);
+    int yIndex = std::floor(y * invH - this->yOffset);
+    int zIndex = std::floor(z * invH - this->zOffset);
 
     size_t lowerX = phiIndex < 0 ? this->nPhi - 1 : phiIndex % nPhi;
     size_t upperX = lowerX + 1;
     upperX = upperX >= nPhi ? 0 : upperX;
 
-    //This wouldn't go below 0 but incase there's floating point error...
     size_t lowerY = thetaIndex < 0 ? 0 : thetaIndex;
     size_t upperY = lowerY + 1;
-    upperY = upperY >= nTheta ? nTheta - 1 : upperY;
 
     fReal lowerLeft = getValueAt(lowerX, lowerY);
     fReal upperLeft = getValueAt(lowerX, upperY);
