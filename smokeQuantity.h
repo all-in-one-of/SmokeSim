@@ -32,18 +32,27 @@ public:
 
     /* buffer swap */
     void swapBuffer();
+
     /* get grid size values */
     size_t getNx();
     size_t getNy();
     size_t getNz();
+
+    /* get coordinates of grid locations */
+    fReal getXCoordAtIndex(size_t x);
+    fReal getYCoordAtIndex(size_t y);
+    fReal getZCoordAtIndex(size_t z);
+
     /* get read attribute at grid cell */
     fReal getValueAt(size_t x, size_t y, size_t z);
-    /* set attribute at grid cell */
+    /* set attribute at grid cell for initialization */
     void setValueAt(size_t x, size_t y, size_t z, fReal val);
     /* write attribute value to NEXT buffer */
     void writeValueTo(size_t x, size_t y, size_t z, fReal val);
     /* get write attribute at grid cell */
     fReal& accessValueAt(size_t x, size_t y, size_t z);
+    /* get index of buffer array at grid cell location */
+    size_t getIndex(size_t x, size_t y, size_t z);
     /* interpolation */
     fReal sampleAt(fReal x, fReal y, fReal z);
 };

@@ -9,8 +9,9 @@ endif()
 
 add_cispba_executable(SmokeSim main.cpp
                     globalIncludes.h
-                    smokeSolver.h
-                    smokeQuantity.h)
+                    smokeSolver.h smokeSolver.cpp
+                    smokeQuantity.h smokeQuantity.cpp
+                    gridStash.h gridStash.cpp)
         
 target_include_directories(SmokeSim SYSTEM PUBLIC ${EIGEN3_INCLUDE_DIR})
 set(CMAKE_CXX_FLAGS "-O3")
