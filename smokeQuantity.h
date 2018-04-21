@@ -51,8 +51,6 @@ public:
     void writeValueTo(size_t x, size_t y, size_t z, fReal val);
     /* get write attribute at grid cell */
     fReal& accessValueAt(size_t x, size_t y, size_t z);
-    /* get index of buffer array at grid cell location */
-    size_t getIndex(size_t x, size_t y, size_t z);
     /* interpolation */
     fReal sampleAt(fReal x, fReal y, fReal z);
 };

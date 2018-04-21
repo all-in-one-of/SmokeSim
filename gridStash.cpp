@@ -5,7 +5,7 @@ GridStash::GridStash(std::string attrName, size_t Nx, size_t Ny, size_t Nz) :
 {
     this->thisStep = new fReal[Nx * Ny * Nz];
 }
-~GridStash(){
+GridStash::~GridStash(){
     delete[] thisStep;
 }
 
