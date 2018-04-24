@@ -5,8 +5,8 @@ SmokeQuantity::SmokeQuantity(std::string attrName, size_t Nx, size_t Ny, size_t 
                         attrName(attrName), Nx(Nx), Ny(Ny), Nz(Nz), h(h), invH(1.0 / h),
                         xOffset(xOffset), yOffset(yOffset), zOffset(zOffset)
 {
-    this->thisStep = new fReal[Nx * Ny * Nz];
-    this->nextStep = new fReal[Nx * Ny * Nz];
+    this->thisStep = new fReal[Nx * Ny * Nz]();
+    this->nextStep = new fReal[Nx * Ny * Nz]();
 }
 
 SmokeQuantity::~SmokeQuantity()
@@ -95,7 +95,7 @@ size_t SmokeQuantity::getIndex(size_t x, size_t y, size_t z)
 // TODO cubic interpolation
 fReal Lerp(const fReal &fromEndPoint, const fReal &toEndPoint, fReal ratio)
 {
-    return (1.0 - ratio) * fromEndPoint + ratio * toEndPoint;
+    return (1.0 - ratio) * fromEndPoint + (ratio * toEndPoint);
 }
 
 fReal SmokeQuantity::sampleAt(fReal x, fReal y, fReal z)
@@ -125,17 +125,17 @@ fReal SmokeQuantity::sampleAt(fReal x, fReal y, fReal z)
     fReal alphaZ = z - static_cast<fReal>(std::floor(z));
 
     // lower face
-    fReal A = Lerp(LHL, LLL, alphaY);
-    fReal B = Lerp(LHH, LLH, alphaY);
-    fReal C = Lerp(B, A, alphaZ);
+    fReal A = Lerp(LLL, LHL, alphaY);
+    fReal B = Lerp(LLH, LHH, alphaY);
+    fReal C = Lerp(A, B, alphaZ);
 
     // upper face
-    fReal D = Lerp(HHL, HLL, alphaY);
-    fReal E = Lerp(HHH, HLH, alphaY);
-    fReal F = Lerp(E, D, alphaZ);
+    fReal D = Lerp(HLL, HHL, alphaY);
+    fReal E = Lerp(HLH, HHH, alphaY);
+    fReal F = Lerp(D, E, alphaZ);
 
     // between faces
-    fReal G = Lerp(F, C, alphaX);
+    fReal G = Lerp(C, F, alphaX);
 
     return G;
 }

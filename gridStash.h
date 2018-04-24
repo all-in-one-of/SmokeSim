@@ -20,6 +20,10 @@ public:
     GridStash(std::string attrName, size_t Nx, size_t Ny, size_t Nz);
     ~GridStash();
 
+    size_t getNx();
+    size_t getNy();
+    size_t getNz();
+
     /* get read attribute at grid cell */
     fReal getValueAt(size_t x, size_t y, size_t z);
     /* write attribute value to THIS buffer */

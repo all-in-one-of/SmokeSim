@@ -33,14 +33,20 @@ private:
     void advection(fReal dt);
     /* apply forces */
     void force(fReal dt);
+
     /* pressure projection */
     void precomputeLaplacian();
+    void testLaplacian();
     void projection(fReal dt);
+    void testBVector(Eigen::VectorXd& b);
+    void fillDivergence(Eigen::VectorXd& b, fReal uSolid, fReal vSolid, fReal wSolid);
+    void testDivergenceFree(Eigen::VectorXd& b);
 
     /* attribute storage */
     void addCenterAttr(std::string name, fReal xOffset = 0.5, fReal yOffset = 0.5, fReal zOffset = 0.5);
     void addFaceAttr(std::string name, fReal xOffset, fReal yOffset, fReal zOffset);
-    void addGridStash(std::string name, int offset);
+    void addCenterGridStash(std::string name);
+    void addFaceGridStash(std::string name, int xO, int yO, int zO);
     
     /* convenient access to maps stored in solver */
     SmokeQuantity* operator[](std::string name);
@@ -51,7 +57,8 @@ private:
     void swapCenterBuffers();
 
     /* for averaging quantities across faces / centers */
-    void averageAttribute(GridStash* avgStash, SmokeQuantity* attr);
+    void averageVelocity(GridStash* avgStash, SmokeQuantity* attr, int xO, int yO, int zO);
+    void averageCenterStash(GridStash* avgStash, GridStash* stash, int xO, int yO, int zO);
 
     /* boundary initialization */
     void initializeBoundary();
@@ -64,8 +71,14 @@ public:
     void step(fReal dt);
     /* reset source velocity */
     void setSourceVelocity(size_t x, size_t y, size_t z, fReal val);
+    /* reset source temperature */
+    void setSourceTemperature(size_t x, size_t y, size_t z, fReal val);
+    /* reset source density */
+    void setSourceDensity(size_t x, size_t y, size_t z, fReal val);
     /* get pointer to MAC grid arrays */
     SmokeQuantity* getAttributeNamed(std::string name);
+    /* get pointer to stashed arrays */
+    GridStash* getStashNamed(std::string name);
 
     /* output bgeo files */
     void write_data_bgeo(const std::string& s, const int frame);
