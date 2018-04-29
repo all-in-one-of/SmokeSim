@@ -5,12 +5,12 @@
 SmokeSolver::SmokeSolver(size_t Nx, size_t Ny, size_t Nz, fReal h) :
                         Nx(Nx), Ny(Ny), Nz(Nz), h(h), invH(1.0 / h)
 {
-    addFaceAttr("u", -0.5, 0.0, 0.0);
-    addFaceAttr("v", 0.0, -0.5, 0.0);
-    addFaceAttr("w", 0.0, 0.0, -0.5);
+    addFaceAttr("u", 0.0, 0.5, 0.5);
+    addFaceAttr("v", 0.5, 0.0, 0.5);
+    addFaceAttr("w", 0.5, 0.5, 0.0);
 
-    addCenterAttr("density", 0.0, 0.0, 0.0);
-    addCenterAttr("T", 0.0, 0.0, 0.0);
+    addCenterAttr("density", 0.5, 0.5, 0.5);
+    addCenterAttr("T", 0.5, 0.5, 0.5);
 
     addCenterGridStash("pressure");
     addCenterGridStash("buoyancy");
@@ -22,6 +22,7 @@ SmokeSolver::SmokeSolver(size_t Nx, size_t Ny, size_t Nz, fReal h) :
     addCenterGridStash("centerFU");
     addCenterGridStash("centerFV");
     addCenterGridStash("centerFW");
+    
     addFaceGridStash("faceFU", 1, 0, 0);
     addFaceGridStash("faceFV", 0, 1, 0);
     addFaceGridStash("faceFW", 0, 0, 1);
@@ -51,8 +52,9 @@ SmokeSolver::~SmokeSolver()
 
 void SmokeSolver::step(fReal dt)
 {
+    setSources();
     advection(dt);
-    // bodyForce(dt);
+    // force(dt);
     projection(dt);
 }
 
@@ -109,8 +111,8 @@ void SmokeSolver::advection(fReal dt)
 
 void SmokeSolver::force(fReal dt)
 {
-    fReal beta = 0.5;
-    fReal alpha = 0.37;
+    fReal alpha = 0.08;
+    fReal beta = 1.0;
 
     SmokeQuantity* T = attributeTable["T"];
     SmokeQuantity* d = attributeTable["density"];
@@ -123,13 +125,34 @@ void SmokeSolver::force(fReal dt)
         {
             for(size_t k = 0; k < Nz; ++k)
             {
-                fReal temp = T->getValueAt(getIndex(i, j, k));
-                fReal dens = d->getValueAt(getIndex(i, j, k));
+                fReal temp = T->getValueAt(i, j, k);
+                fReal dens = d->getValueAt(i, j, k);
                 fReal buoyancy = -alpha * dens + beta * temp;
                 centerFV->writeValueTo(i, j, k, buoyancy);
             }
         }
     }
+
+    GridStash* faceFV = getStashNamed("faceFV");
+    centerToFaceStash(faceFV, centerFV, 0, 1, 0);
+
+    SmokeQuantity* v = attributeTable["v"];
+    size_t maxY = v->getNy();
+
+    for(size_t i = 0; i < Nx; ++i)
+    {
+        for(size_t j = 0; j < maxY; ++j)
+        {
+            for(size_t k = 0; k < Nz; ++k)
+            {
+                fReal vBeforeUpdate = v->getValueAt(i, j, k);
+                fReal deltaV = dt * faceFV->getValueAt(i, j, k);
+                v->writeValueTo(i, j, k, vBeforeUpdate + deltaV + 500.0);
+            }
+        }
+    }
+
+    v->swapBuffer();
 }
 
 void SmokeSolver::projection(fReal dt)
@@ -180,47 +203,8 @@ void SmokeSolver::projection(fReal dt)
     }
 
     // update velocities
-    for(size_t i = 1; i < Nx; ++i)
-    {
-        for(size_t j = 1; j < Ny; ++j)
-        {
-            for(size_t k = 1; k < Nz; ++k)
-            {   
-                fReal uBeforeUpdate = u->getValueAt(i, j, k);
-                fReal vBeforeUpdate = v->getValueAt(i, j, k);
-                fReal wBeforeUpdate = w->getValueAt(i, j, k);
-                size_t iRight = i;
-                size_t iLeft = i - 1;
-                size_t jUp = j;
-                size_t jDown = j - 1;
-                size_t forward = k;
-                size_t backward = k - 1;
-                if(getGridTypeAt(iRight, j, k) == SMOKE && getGridTypeAt(iLeft, j, k) == SMOKE){
-                    fReal deltaPressure = p->getValueAt(iRight, j, k) - p->getValueAt(iLeft, j, k);
-                    fReal deltaU = scaleP * deltaPressure;
-                    u->writeValueTo(i, j, k, uBeforeUpdate + deltaU);
-                }
-                else{
-                    u->writeValueTo(i, j, k, uSolid);
-                }
-                if(getGridTypeAt(i, jUp, k) == SMOKE && getGridTypeAt(i, jDown, k) == SMOKE){
-                    fReal deltaPressure = p->getValueAt(i, jUp, k) - p->getValueAt(i, jDown, k);
-                    fReal deltaV = scaleP * deltaPressure;
-                    v->writeValueTo(i, j, k, vBeforeUpdate + deltaV);
-                }
-                else{
-                    v->writeValueTo(i, j, k, vSolid);
-                }
-                if(getGridTypeAt(i, j, forward) == SMOKE && getGridTypeAt(i, j, backward) == SMOKE){
-                    fReal deltaPressure = p->getValueAt(i, j, forward) - p->getValueAt(i, j, backward);
-                    fReal deltaW = scaleP * deltaPressure;
-                    w->writeValueTo(i, j, k, wBeforeUpdate + deltaW);
-                }
-                else{
-                    w->writeValueTo(i, j, k, wSolid);
-                }
-            }
-        }
+    for (auto quantity : this->faceAttr){
+        updateVelWithPressure(quantity.second, p, scaleP);
     }
 
     u->swapBuffer();
@@ -230,6 +214,47 @@ void SmokeSolver::projection(fReal dt)
     // TEST divergence free condition
     // fillDivergence(b, uSolid, vSolid, wSolid);
     // testDivergenceFree(b);
+}
+
+void SmokeSolver::updateVelWithPressure(SmokeQuantity* speed, GridStash* p, fReal scaleP)
+{
+    size_t xMax = speed->getNx();
+    size_t yMax = speed->getNy();
+    size_t zMax = speed->getNz();
+
+    size_t uOffSet = 0;
+    size_t vOffSet = 0;
+    size_t wOffSet = 0;
+
+    if(speed->getName() == "u"){
+        uOffSet = 1;
+    }
+    if(speed->getName() == "v"){
+        vOffSet = 1;
+    }
+    if(speed->getName() == "w"){
+        wOffSet = 1;
+    }
+
+    for(size_t i = 1; i < xMax - 1; ++i)
+    {
+        for(size_t j = 1; j < yMax - 1; ++j)
+        {
+            for(size_t k = 1; k < zMax - 1; ++k)
+            {
+                fReal speedBeforeUpdate = speed->getValueAt(i, j, k);
+
+                if(getGridTypeAt(i, j, k) == SMOKE && getGridTypeAt(i - uOffSet, j - vOffSet, k - wOffSet) == SMOKE){
+                    fReal deltaPressure = p->getValueAt(i, j, k) - p->getValueAt(i - uOffSet, j - vOffSet, k - wOffSet);
+                    fReal delta = scaleP * deltaPressure;
+                    speed->writeValueTo(i, j, k, speedBeforeUpdate + delta);
+                }
+                else{
+                    speed->writeValueTo(i, j, k, 0.0);
+                }
+            }
+        }
+    }
 }
 
 void SmokeSolver::testBVector(Eigen::VectorXd& b)
@@ -305,7 +330,7 @@ void SmokeSolver::fillDivergence(Eigen::VectorXd& b, fReal uSolid, fReal vSolid,
                 else{
                     wMinus = wSolid;
                 }
-                b(getIndex(i, j, k)) = uPlus - uMinus + vPlus - vMinus + wPlus - wMinus;
+                b(getIndex(i, j, k)) = (uPlus - uMinus) + (vPlus - vMinus) + (wPlus - wMinus);
             }
         }
     }
@@ -409,11 +434,11 @@ void SmokeSolver::testLaplacian()
     }
 }
 
-void SmokeSolver::averageVelocity(GridStash* avgStash, SmokeQuantity* attr, int xO, int yO, int zO)
+void SmokeSolver::faceToCenterVelocity(GridStash* centerStash, SmokeQuantity* vel, int xO, int yO, int zO)
 {
-    size_t maxX = attr->getNx() - xO;
-    size_t maxY = attr->getNy() - yO;
-    size_t maxZ = attr->getNz() - zO;
+    size_t maxX = vel->getNx() - xO;
+    size_t maxY = vel->getNy() - yO;
+    size_t maxZ = vel->getNz() - zO;
 
     for(size_t i = 0; i < maxX; ++i)
     {
@@ -421,20 +446,20 @@ void SmokeSolver::averageVelocity(GridStash* avgStash, SmokeQuantity* attr, int 
         {
             for (size_t k = 0; k < maxZ; ++k)
             {
-                fReal lowerValue = attr->getValueAt(i, j, k);
-                fReal upperValue = attr->getValueAt(i + xO, j + yO, k + zO);
+                fReal lowerValue = vel->getValueAt(i, j, k);
+                fReal upperValue = vel->getValueAt(i + xO, j + yO, k + zO);
                 fReal avg = (lowerValue + upperValue) / 2.0;
-                avgStash->writeValueTo(i, j, k, avg);
+                centerStash->writeValueTo(i, j, k, avg);
             }
         }
     }
 }
 
-void SmokeSolver::averageCenterStash(GridStash* avgStash, GridStash* stash, int xO, int yO, int zO)
+void SmokeSolver::centerToFaceStash(GridStash* faceStash, GridStash* centerStash, int xO, int yO, int zO)
 {
-    size_t maxX = stash->getNx() - 1;
-    size_t maxY = stash->getNy() - 1;
-    size_t maxZ = stash->getNz() - 1;
+    size_t maxX = centerStash->getNx() - xO;
+    size_t maxY = centerStash->getNy() - yO;
+    size_t maxZ = centerStash->getNz() - zO;
 
     for(size_t i = 0; i < maxX; ++i)
     {
@@ -442,10 +467,10 @@ void SmokeSolver::averageCenterStash(GridStash* avgStash, GridStash* stash, int 
         {
             for (size_t k = 0; k < maxZ; ++k)
             {
-                fReal lowerValue = stash->getValueAt(i, j, k);
-                fReal upperValue = attr->getValueAt(i + xO, j + yO, k + zO);
+                fReal lowerValue = centerStash->getValueAt(i, j, k);
+                fReal upperValue = centerStash->getValueAt(i + xO, j + yO, k + zO);
                 fReal avg = (lowerValue + upperValue) / 2.0;
-                avgStash->writeValueTo(i, j, k, avg);
+                faceStash->writeValueTo(i + xO, j + yO, k + zO, avg);
             }
         }
     }
@@ -454,10 +479,29 @@ void SmokeSolver::averageCenterStash(GridStash* avgStash, GridStash* stash, int 
 // <<<<<<<<<<
 // INITIALIZATION >>>>>>>>>>>>>>>>>>>>
 
-void SmokeSolver::setSourceVelocity(size_t x, size_t y, size_t z, fReal val){
+void SmokeSolver::setSources()
+{
+    SmokeQuantity* u = (*this)["u"];
     SmokeQuantity* v = (*this)["v"];
-    v->setValueAt(x, y, z, val);
-    v->setValueAt(x, y + 1, z, val);
+    SmokeQuantity* w = (*this)["w"];
+    // if we assume a centrally placed source at the bottom of the sim cube
+    // helpful to consider a cube with an odd number of subdivisions
+    size_t centerX = Nx / 2; 
+    size_t centerZ = Nz / 2;
+    size_t bottomY = 1;
+    this->setSourceVelocity(v, centerX, bottomY, centerZ, 2.0);
+    this->setSourceVelocity(v, centerX, bottomY + 1, centerZ, 2.0);
+
+    // setting temperature and density of sources
+    this->setSourceTemperature(centerX, bottomY, centerZ, 1.0);
+    this->setSourceTemperature(centerX, bottomY + 1, centerZ, 1.0);
+    this->setSourceDensity(centerX, bottomY, centerZ, 1.0);
+    this->setSourceDensity(centerX, bottomY + 1, centerZ, 1.0);
+}
+
+void SmokeSolver::setSourceVelocity(SmokeQuantity* speed, size_t x, size_t y, size_t z, fReal val){
+    
+    speed->setValueAt(x, y, z, val);
 }
 
 void SmokeSolver::setSourceTemperature(size_t x, size_t y, size_t z, fReal val){
@@ -523,13 +567,13 @@ void SmokeSolver::addFaceAttr(std::string name, fReal xOffset, fReal yOffset, fR
     size_t attrNz = this->Nz;
 
     if(name == "u"){
-        attrNx++;
+        attrNx = attrNx + 1;
     }
     if(name == "v"){
-        attrNy++;
+        attrNy = attrNy + 1;
     }
     if(name == "w"){
-        attrNz++;
+        attrNz = attrNz + 1;
     }
     
     SmokeQuantity* ptr = new SmokeQuantity(name, attrNx, attrNy, attrNz, this->h, xOffset, yOffset, zOffset);
@@ -546,11 +590,11 @@ void SmokeSolver::addCenterGridStash(std::string name)
     this->gridStashTable.emplace(std::pair<std::string, GridStash*>(name, ptr));
 }
 
-void SmokeSolver::addFaceGridStash(std::string name, int xO, int yO, int zO);
+void SmokeSolver::addFaceGridStash(std::string name, int xO, int yO, int zO)
 {
-    size_t attrNx = this->Nx;
-    size_t attrNy = this->Ny;
-    size_t attrNz = this->Nz;
+    size_t attrNx = this->Nx + 1;
+    size_t attrNy = this->Ny + 1;
+    size_t attrNz = this->Nz + 1;
 
     GridStash* ptr = new GridStash(name, attrNx, attrNy, attrNz);
     this->gridStashTable.emplace(std::pair<std::string, GridStash*>(name, ptr));
@@ -578,10 +622,9 @@ gridType SmokeSolver::getGridTypeAt(size_t x, size_t y, size_t z)
 
 gridType SmokeSolver::getGridTypeAt(fReal x, fReal y, fReal z)
 {
-    // const fReal epsilon = 1E-10;
-    int xIndex = std::floor(x * invH + 0.5);
-    int yIndex = std::floor(y * invH + 0.5);
-    int zIndex = std::floor(z * invH + 0.5);
+    int xIndex = std::floor(x * invH);
+    int yIndex = std::floor(y * invH);
+    int zIndex = std::floor(z * invH);
 
     size_t xCell = xIndex < 0 ? 0 : xIndex;
     size_t yCell = yIndex < 0 ? 0 : yIndex;

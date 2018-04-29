@@ -41,9 +41,10 @@ private:
     void testBVector(Eigen::VectorXd& b);
     void fillDivergence(Eigen::VectorXd& b, fReal uSolid, fReal vSolid, fReal wSolid);
     void testDivergenceFree(Eigen::VectorXd& b);
+    void updateVelWithPressure(SmokeQuantity* speed, GridStash* p, fReal scaleP);
 
     /* attribute storage */
-    void addCenterAttr(std::string name, fReal xOffset = 0.5, fReal yOffset = 0.5, fReal zOffset = 0.5);
+    void addCenterAttr(std::string name, fReal xOffset, fReal yOffset, fReal zOffset);
     void addFaceAttr(std::string name, fReal xOffset, fReal yOffset, fReal zOffset);
     void addCenterGridStash(std::string name);
     void addFaceGridStash(std::string name, int xO, int yO, int zO);
@@ -51,17 +52,26 @@ private:
     /* convenient access to maps stored in solver */
     SmokeQuantity* operator[](std::string name);
 
-    /* for mass buffer swapping */
+    /* for buffer swapping */
     void swapBuffers();
     void swapFaceBuffers();
     void swapCenterBuffers();
 
     /* for averaging quantities across faces / centers */
-    void averageVelocity(GridStash* avgStash, SmokeQuantity* attr, int xO, int yO, int zO);
-    void averageCenterStash(GridStash* avgStash, GridStash* stash, int xO, int yO, int zO);
+    void faceToCenterVelocity(GridStash* centerStash, SmokeQuantity* vel, int xO, int yO, int zO);
+    void centerToFaceStash(GridStash* faceStash, GridStash* centerStash, int xO, int yO, int zO);
 
     /* boundary initialization */
     void initializeBoundary();
+
+    /* set all sources */
+    void setSources();
+    /* reset source velocity */
+    void setSourceVelocity(SmokeQuantity* speed, size_t x, size_t y, size_t z, fReal val);
+    /* reset source temperature */
+    void setSourceTemperature(size_t x, size_t y, size_t z, fReal val);
+    /* reset source density */
+    void setSourceDensity(size_t x, size_t y, size_t z, fReal val);
 
 public:
     SmokeSolver(size_t Nx, size_t Ny, size_t Nz, fReal h);
@@ -69,12 +79,6 @@ public:
 
     /* advance solver */
     void step(fReal dt);
-    /* reset source velocity */
-    void setSourceVelocity(size_t x, size_t y, size_t z, fReal val);
-    /* reset source temperature */
-    void setSourceTemperature(size_t x, size_t y, size_t z, fReal val);
-    /* reset source density */
-    void setSourceDensity(size_t x, size_t y, size_t z, fReal val);
     /* get pointer to MAC grid arrays */
     SmokeQuantity* getAttributeNamed(std::string name);
     /* get pointer to stashed arrays */

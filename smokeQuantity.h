@@ -53,4 +53,6 @@ public:
     fReal& accessValueAt(size_t x, size_t y, size_t z);
     /* interpolation */
     fReal sampleAt(fReal x, fReal y, fReal z);
+    /* get name of this quantity */
+    std::string getName();
 };

@@ -91,6 +91,11 @@ size_t SmokeQuantity::getIndex(size_t x, size_t y, size_t z)
     return z * (Nx * Ny) + y * (Nx) + x;
 }
 
+std::string SmokeQuantity::getName()
+{
+    return this->attrName;
+}
+
 // Linear interpolation
 // TODO cubic interpolation
 fReal Lerp(const fReal &fromEndPoint, const fReal &toEndPoint, fReal ratio)
