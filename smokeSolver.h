@@ -14,6 +14,12 @@ private:
     fReal invH;
     /* Laplacian Matrix */
     Eigen::SparseMatrix<fReal> Laplacian;
+    /* force parameters */
+    fReal alpha;
+    fReal beta;
+    fReal epsilon;
+    /* velocity source initialization speed */
+    fReal sourceSpeed;
     
     /* grid attribute name : pointer to grid attribute*/
     std::map<std::string, SmokeQuantity*> centerAttr;
@@ -31,8 +37,12 @@ private:
 
     /* advection */
     void advection(fReal dt);
+
     /* apply forces */
     void force(fReal dt);
+    void buoyancyForce();
+    void vorticity();
+    void forceVelocityUpdate(fReal dt);
 
     /* pressure projection */
     void precomputeLaplacian();
@@ -47,7 +57,7 @@ private:
     void addCenterAttr(std::string name, fReal xOffset, fReal yOffset, fReal zOffset);
     void addFaceAttr(std::string name, fReal xOffset, fReal yOffset, fReal zOffset);
     void addCenterGridStash(std::string name);
-    void addFaceGridStash(std::string name, int xO, int yO, int zO);
+    void addFaceGridStash(std::string name, size_t xO, size_t yO, size_t zO);
     
     /* convenient access to maps stored in solver */
     SmokeQuantity* operator[](std::string name);
@@ -58,8 +68,8 @@ private:
     void swapCenterBuffers();
 
     /* for averaging quantities across faces / centers */
-    void faceToCenterVelocity(GridStash* centerStash, SmokeQuantity* vel, int xO, int yO, int zO);
-    void centerToFaceStash(GridStash* faceStash, GridStash* centerStash, int xO, int yO, int zO);
+    void faceToCenterVelocity(GridStash* centerStash, SmokeQuantity* vel, size_t xO, size_t yO, size_t zO);
+    void centerToFaceStash(GridStash* faceStash, GridStash* centerStash, size_t xO, size_t yO, size_t zO);
 
     /* boundary initialization */
     void initializeBoundary();
@@ -74,7 +84,7 @@ private:
     void setSourceDensity(size_t x, size_t y, size_t z, fReal val);
 
 public:
-    SmokeSolver(size_t Nx, size_t Ny, size_t Nz, fReal h);
+    SmokeSolver(size_t Nx, size_t Ny, size_t Nz, fReal h, fReal alpha, fReal beta, fReal epsilon, fReal sourceSpeed);
     ~SmokeSolver();
 
     /* advance solver */

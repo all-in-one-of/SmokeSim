@@ -44,6 +44,12 @@ compile_commands.json
 CTestTestfile.cmake
 cmake-build-debug/*
 output/*
+renders/*
+particles/*
+particles2/*
+particles3/*
+grid/*
+backup/*
 
 .DS_Store
 

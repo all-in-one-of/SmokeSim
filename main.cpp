@@ -4,37 +4,58 @@
 # include "smokeSolver.h"
 
 /* grid specs */
-const size_t Nx = 25;
-const size_t Ny = 25;
-const size_t Nz = 25;
+// recommend odd numbers for centrally placed sources
+const size_t Nx = 21;
+const size_t Ny = 21;
+const size_t Nz = 21;
 /* for a 1x1x1 cube */
-fReal h = 1.0 / Nx;
+const fReal h = 1.0 / static_cast <fReal> (Nx);
 
 /* time step and frame rate */
 /* CFL condition: dt <= 5*dx / u_max */
 /* dt < DT */
 const float dt = 0.005;
 const float DT = 1.0 / 24.0;
-const size_t frames = 100;
+const size_t frames = 200;
 
 /* particle birth rate */
-const size_t particleRate = 15;
+const size_t particleRate = 200;
+
+/* source speed */
+const fReal sourceSpeed = 0.75;
+
+/* gravity */
+const fReal alpha = 0.08;
+/* buoyancy */
+const fReal beta = 0.37;
+//const fReal beta = 0.17;
+/* vorticity gain */
+const fReal epsilon = 0.03;
 
 // NOTE: Sources defined in SmokeSolver > setSources()
 
 /* file output destination */
-const std::string filepath = "output/frame";
+const std::string filepathP = "particles/frame";
+const std::string filepathP2 = "particles2/frame";
+const std::string filepathP3 = "particles3/frame";
+const std::string filepathG = "grid/frame";
 
 int main(int argc, char** argv)
 {
-    size_t Sx = Nx / 2;
-    size_t Sy = 1;
-    size_t Sz = Nz / 2;
+    SmokeSolver solver(Nx, Ny, Nz, h, alpha, beta, epsilon, sourceSpeed);
 
-    SmokeSolver solver(Nx, Ny, Nz, h);
     SmokeParticles particles(h);
-    particles.addParticles(Sx, Sy, Sz, particleRate);
-    particles.write_data_bgeo(filepath, 1);
+    // SmokeParticles particles2(h);
+
+    particles.addParticles(Nx / 2, 2, Nz / 2, particleRate);
+    // particles2.addParticles(3 * Nx / 5, 2, 3 * Nz / 5, particleRate);
+
+# ifdef PARTIO
+    particles.write_data_bgeo(filepathP, 1);
+    // particles2.write_data_bgeo(filepathP2, 1);
+
+    solver.write_data_bgeo(filepathG, 1);
+# endif
 
     SmokeQuantity* u = solver.getAttributeNamed("u");
     SmokeQuantity* v = solver.getAttributeNamed("v");
@@ -48,17 +69,28 @@ int main(int argc, char** argv)
         while(T < i*DT){
             solver.step(dt);
             particles.updateParticles(u, v, w, dt);
-            particles.addParticles(Sx, Sy, Sz, particleRate);
+            particles.addParticles(Nx / 2, 2, Nz / 2, particleRate);
+            // particles2.updateParticles(u, v, w, dt);
+            // particles2.addParticles(3 * Nx / 5, 2, 3 * Nz / 5, particleRate);
+
             T += dt;
         }
         solver.step(dt + i*DT - T);
         particles.updateParticles(u, v, w, dt);
-        particles.addParticles(Sx, Sy, Sz, particleRate);
-        
+        particles.addParticles(Nx / 2, 2, Nz / 2, particleRate);
+        // particles2.updateParticles(u, v, w, dt);
+        // particles2.addParticles(3 * Nx / 5, 2, 3 * Nz / 5, particleRate);
+
         T = i*DT;
         
         std::cout << "writing frame " << i << std::endl;
-        particles.write_data_bgeo(filepath, i);
+# ifdef PARTIO
+
+        particles.write_data_bgeo(filepathP, i);
+        // particles2.write_data_bgeo(filepathP2, i);
+
+        solver.write_data_bgeo(filepathG, i);
+# endif
     }
     return 0;
 }

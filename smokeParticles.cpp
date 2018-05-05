@@ -10,12 +10,12 @@ SmokeParticles::~SmokeParticles()
 
 void SmokeParticles::addParticles(size_t x, size_t y, size_t z, size_t n){
     for(unsigned int i = 0; i < n; ++i){
-        fReal randTheta = M_2PI * static_cast <fReal> (rand()) / static_cast <fReal> (RAND_MAX);
-        fReal randR = (h / 2) * static_cast <fReal> (rand()) / static_cast <fReal> (RAND_MAX);
+        fReal randTheta = M_2PI * (static_cast <fReal> (rand()) / static_cast <fReal> (RAND_MAX));
+        fReal randR = (this->h / 2) * (static_cast <fReal> (rand()) / static_cast <fReal> (RAND_MAX));
 
-        fReal xVal = x * h + (h / 2) + randR * cos(randTheta);
-        fReal yVal = y * h;
-        fReal zVal = z * h + (h / 2) + randR * sin(randTheta);
+        fReal xVal = x * this->h + (this->h / 2) + randR * cos(randTheta);
+        fReal yVal = y * this->h + (this->h / 10);
+        fReal zVal = z * this->h + (this->h / 2) + randR * sin(randTheta);
 
         Eigen::Matrix<fReal, 3, 1> pos(xVal, yVal, zVal);
         Eigen::Matrix<fReal, 3, 1> vel(0.0, 0.0, 0.0);
@@ -48,6 +48,7 @@ void SmokeParticles::updateParticles(SmokeQuantity* u, SmokeQuantity* v, SmokeQu
 
 void SmokeParticles::write_data_bgeo(const std::string& s, const int frame)
 {
+# ifdef PARTIO
     std::string file = s + std::to_string(frame) + ".bgeo";
     Partio::ParticlesDataMutable* parts = Partio::create();
     Partio::ParticleAttribute posH, vH;
@@ -64,5 +65,6 @@ void SmokeParticles::write_data_bgeo(const std::string& s, const int frame)
         }
     }
     Partio::write(file.c_str(), *parts);
-    parts->release();
+    parts->release(); 
+# endif
 }

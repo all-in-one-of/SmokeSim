@@ -32,19 +32,19 @@ size_t SmokeQuantity::getNz()
 
 fReal SmokeQuantity::getXCoordAtIndex(size_t x)
 {
-    fReal xReal = static_cast<fReal>(x) - xOffset;
+    fReal xReal = static_cast<fReal>(x) + xOffset;
     return xReal * this->h;
 }
 
 fReal SmokeQuantity::getYCoordAtIndex(size_t y)
 {
-    fReal yReal = static_cast<fReal>(y) - yOffset;
+    fReal yReal = static_cast<fReal>(y) + yOffset;
     return yReal * this->h;
 }
 
 fReal SmokeQuantity::getZCoordAtIndex(size_t z)
 {
-    fReal zReal = static_cast<fReal>(z) - zOffset;
+    fReal zReal = static_cast<fReal>(z) + zOffset;
     return zReal * this->h;
 }
 
@@ -88,7 +88,7 @@ size_t SmokeQuantity::getIndex(size_t x, size_t y, size_t z)
         std::cerr << "Index out of bound at x: " << x << " y: " << y << " z: " << z << std::endl;
     }
 # endif
-    return z * (Nx * Ny) + y * (Nx) + x;
+    return (z * (this->Nx * this->Ny)) + (y * this->Nx) + x;
 }
 
 std::string SmokeQuantity::getName()
@@ -105,15 +105,15 @@ fReal Lerp(const fReal &fromEndPoint, const fReal &toEndPoint, fReal ratio)
 
 fReal SmokeQuantity::sampleAt(fReal x, fReal y, fReal z)
 {
-    int xIndex = std::floor(x * invH - this->xOffset);
-    int yIndex = std::floor(y * invH - this->yOffset);
-    int zIndex = std::floor(z * invH - this->zOffset);
+    int xIndex = std::floor(x * this->invH - this->xOffset);
+    int yIndex = std::floor(y * this->invH - this->yOffset);
+    int zIndex = std::floor(z * this->invH - this->zOffset);
 
-    size_t lowerX = xIndex < 0 ? 0 : xIndex;
+    size_t lowerX = xIndex;// < 0 ? 0 : xIndex;
     size_t upperX = lowerX + 1;
-    size_t lowerY = yIndex < 0 ? 0 : yIndex;
+    size_t lowerY = yIndex;// < 0 ? 0 : yIndex;
     size_t upperY = lowerY + 1;
-    size_t lowerZ = zIndex < 0 ? 0 : zIndex;
+    size_t lowerZ = zIndex;// < 0 ? 0 : zIndex;
     size_t upperZ = lowerZ + 1;
 
     fReal LHL = getValueAt(lowerX, upperY, lowerZ);
@@ -125,9 +125,9 @@ fReal SmokeQuantity::sampleAt(fReal x, fReal y, fReal z)
     fReal HHH = getValueAt(upperX, upperY, upperZ);
     fReal HLH = getValueAt(upperX, lowerY, upperZ);
 
-    fReal alphaX = x - static_cast<fReal>(std::floor(x));
-    fReal alphaY = y - static_cast<fReal>(std::floor(y));
-    fReal alphaZ = z - static_cast<fReal>(std::floor(z));
+    fReal alphaX = (x - getXCoordAtIndex(lowerX)) * invH;
+    fReal alphaY = (y - getYCoordAtIndex(lowerY)) * invH;
+    fReal alphaZ = (z - getZCoordAtIndex(lowerZ)) * invH;
 
     // lower face
     fReal A = Lerp(LLL, LHL, alphaY);

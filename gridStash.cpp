@@ -47,5 +47,5 @@ size_t GridStash::getIndex(size_t x, size_t y, size_t z)
         std::cerr << "Index out of bound at x: " << x << " y: " << y << " z: " << z << std::endl;
     }
 # endif
-    return z * (Nx * Ny) + y * (Nx) + x;
+    return (z * (this->Nx * this->Ny)) + (y * this->Nx) + x;
 }
