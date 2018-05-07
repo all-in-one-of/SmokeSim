@@ -1,6 +1,6 @@
 # pragma once
 
-# define PARTIO
+//# define PARTIO
 # include <string>
 # include <map>
 # include <iostream>
@@ -11,7 +11,7 @@
 # include "Eigen/Dense"
 # include "Eigen/Core"
 # include <cmath>
-# include <Eigen/IterativeLinearSolvers>
+# include "Eigen/IterativeLinearSolvers"
 //# include <unsupported/Eigen/IterativeSolvers>
 
 # define M_PI           3.14159265358979323846  /* pi */

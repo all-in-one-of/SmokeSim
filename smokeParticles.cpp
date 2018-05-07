@@ -40,9 +40,21 @@ void SmokeParticles::updateParticles(SmokeQuantity* u, SmokeQuantity* v, SmokeQu
         fReal nextY = positions[i](1, 0) + vVel * deltaT;
         fReal nextZ = positions[i](2, 0) + wVel * deltaT;
 
-        positions[i](0, 0) = nextX;
-        positions[i](1, 0) = nextY;
-        positions[i](2, 0) = nextZ;
+        fReal uVelNext = u->sampleAt(nextX, nextY, nextZ);
+        fReal vVelNext = v->sampleAt(nextY, nextY, nextZ);
+        fReal wVelNext = w->sampleAt(nextX, nextY, nextZ);
+
+        fReal avgUVel = (uVelNext + uVel) / 2.0;
+        fReal avgVVel = (vVelNext + vVel) / 2.0;
+        fReal avgWVel = (wVelNext + wVel) / 2.0;
+
+        fReal finalX = positions[i](0, 0) + avgUVel * deltaT;
+        fReal finalY = positions[i](1, 0) + avgVVel * deltaT;
+        fReal finalZ = positions[i](2, 0) + avgWVel * deltaT;
+
+        positions[i](0, 0) = finalX;
+        positions[i](1, 0) = finalY;
+        positions[i](2, 0) = finalZ;
     }
 }
 

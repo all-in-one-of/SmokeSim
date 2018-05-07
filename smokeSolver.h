@@ -14,6 +14,8 @@ private:
     fReal invH;
     /* Laplacian Matrix */
     Eigen::SparseMatrix<fReal> Laplacian;
+    /* preconditioner for incomplete Cholesky */
+    Eigen::VectorXd precon;
     /* force parameters */
     fReal alpha;
     fReal beta;
@@ -52,6 +54,10 @@ private:
     void fillDivergence(Eigen::VectorXd& b, fReal uSolid, fReal vSolid, fReal wSolid);
     void testDivergenceFree(Eigen::VectorXd& b);
     void updateVelWithPressure(SmokeQuantity* speed, GridStash* p, fReal scaleP);
+    void PCG(Eigen::VectorXd& p, Eigen::VectorXd& b);
+    void pressureSolve(Eigen::VectorXd& p, Eigen::VectorXd& b);
+    void computePreconditioner();
+    void applyPreconditioner(Eigen::VectorXd& z, Eigen::VectorXd& r);
 
     /* attribute storage */
     void addCenterAttr(std::string name, fReal xOffset, fReal yOffset, fReal zOffset);

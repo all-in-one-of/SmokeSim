@@ -38,6 +38,10 @@ SmokeSolver::SmokeSolver(size_t Nx, size_t Ny, size_t Nz, fReal h, fReal alpha, 
     initializeBoundary();
 
     precomputeLaplacian();
+
+    precon = Eigen::VectorXd(Nx * Ny * Nz);
+    precon.setZero();
+    computePreconditioner();
 }
 
 SmokeSolver::~SmokeSolver()
@@ -348,10 +352,8 @@ void SmokeSolver::projection(fReal dt)
     // solve for pressure vector
     Eigen::VectorXd pVector(Nx * Ny * Nz);
 
-    Eigen::ConjugateGradient<Eigen::SparseMatrix<fReal>, Eigen::Lower | Eigen::Upper> cg;
-	//Eigen::ConjugateGradient<Eigen::SparseMatrix<fReal>, Eigen::Lower, Eigen::IncompleteCholesky<fReal>> cg;
-    cg.compute(Laplacian);
-    pVector = cg.solve(b);
+    //pressureSolve(pVector, b);
+    PCG(pVector, b);
 
     GridStash* p = getStashNamed("pressure");
 
@@ -379,6 +381,14 @@ void SmokeSolver::projection(fReal dt)
     u->swapBuffer();
     v->swapBuffer();
     w->swapBuffer();
+}
+
+void SmokeSolver::pressureSolve(Eigen::VectorXd& p, Eigen::VectorXd& b)
+{
+    Eigen::ConjugateGradient<Eigen::SparseMatrix<fReal>, Eigen::Lower | Eigen::Upper> cg;
+    //Eigen::ConjugateGradient<Eigen::SparseMatrix<fReal>, Eigen::Lower | Eigen::Upper, Eigen::IncompleteCholesky<fReal>> cg;
+    cg.compute(Laplacian);
+    p = cg.solve(b);
 }
 
 void SmokeSolver::updateVelWithPressure(SmokeQuantity* speed, GridStash* p, fReal scaleP)
@@ -572,6 +582,170 @@ void SmokeSolver::precomputeLaplacian()
     // TEST that Laplacian is symmetric and rows sum to zero
     // testLaplacian();
     // exit(1);
+}
+
+void SmokeSolver::PCG(Eigen::VectorXd& p, Eigen::VectorXd& b)
+{
+    // tolerance for PCG solver
+    fReal tol = 1E-5;
+    // residual vector
+    Eigen::VectorXd r(Nx * Ny * Nz);
+    r = b;
+    // auxilliary vector
+    Eigen::VectorXd z(Nx * Ny * Nz);
+    // for now, but replace with:
+    applyPreconditioner(z, r);
+    z.setZero();
+    // search vector
+    Eigen::VectorXd s(Nx * Ny * Nz);
+    s = z;
+
+    fReal sigma = z.dot(r);
+    // maximum number of iterations for convergence
+    size_t length = Nx * Ny * Nz;
+    size_t maxIterations = 2 * length;
+
+    for(size_t i = 0; i < maxIterations; ++i)
+    {
+        z = Laplacian * s;
+        fReal temp = z.dot(s);
+        fReal gamma = sigma / temp;
+        p = p + gamma * s;
+        r = r - gamma * z;
+        fReal maxR = 0;
+        for(int j = 0; j < length; ++j)
+        {
+            if(std::abs(r(j)) > maxR)
+            {
+                maxR = std::abs(r(j));
+            }
+        }
+        if(maxR < tol)
+        {
+            return;
+        }
+        applyPreconditioner(z, r);
+        fReal sigmaNew = z.dot(r);
+        fReal lambda = sigmaNew / sigma;
+        s = z + lambda * s;
+        sigma = sigmaNew;
+    }
+    std::cout << "iteration limit exceeded!" << std::endl;
+    return;
+}
+
+void SmokeSolver::applyPreconditioner(Eigen::VectorXd& z, Eigen::VectorXd& r)
+{
+    // first solve Lq = r
+    Eigen::VectorXd q(Nx * Ny * Nz);
+    q.setZero();
+
+    for(size_t i = 1; i < Nx - 1; ++i)
+    {
+        for(size_t j = 1; j < Ny - 1; ++j)
+        {
+            for(size_t k = 1; k < Nz - 1; ++k)
+            {
+                if(getGridTypeAt(i, j, k) == SMOKE)
+                {                
+                    size_t rowNumber = getIndex(i, j, k);
+
+                    fReal Aplusi_im1 = Laplacian.coeffRef(getIndex(i - 1, j, k), getIndex(i + 1, j, k));
+                    fReal Aplusj_jm1 = Laplacian.coeffRef(getIndex(i, j - 1, k), getIndex(i, j + 1, k));
+                    fReal Aplusk_km1 = Laplacian.coeffRef(getIndex(i, j, k - 1), getIndex(i, j, k + 1));
+
+                    fReal precon_im1 = precon(getIndex(i - 1, j, k));
+                    fReal precon_jm1 = precon(getIndex(i, j - 1, k));
+                    fReal precon_km1 = precon(getIndex(i, j, k - 1));
+
+                    fReal q_im1 = q(getIndex(i - 1, j, k));
+                    fReal q_jm1 = q(getIndex(i, j - 1, k));
+                    fReal q_km1 = q(getIndex(i, j, k - 1));
+
+                    fReal t = r(rowNumber);
+                    t -= Aplusi_im1 * precon_im1 * q_im1;
+                    t -= Aplusj_jm1 * precon_jm1 * q_jm1;
+                    t -= Aplusk_km1 * precon_km1 * q_km1;
+
+                    q(rowNumber) = t * precon(rowNumber);
+                }
+            }
+        }
+    }
+
+    for(size_t i = Nx - 2; i > 0; i--)
+    {
+        for(size_t j = Ny - 2; j > 0; j--)
+        {
+            for(size_t k = Nz - 2; k > 0; k--)
+            {
+                if(getGridTypeAt(i, j, k) == SMOKE)
+                {
+                    size_t rowNumber = getIndex(i, j, k);
+
+                    fReal Aplusi_ijk = Laplacian.coeffRef(rowNumber, getIndex(i + 1, j, k));
+                    fReal Aplusj_ijk = Laplacian.coeffRef(rowNumber, getIndex(i, j + 1, k));
+                    fReal Aplusk_ijk = Laplacian.coeffRef(rowNumber, getIndex(i, j, k + 1));
+
+                    fReal precon_ijk = precon(rowNumber);
+
+                    fReal z_ip1 = z(getIndex(i + 1, j, k));
+                    fReal z_jp1 = z(getIndex(i, j + 1, k));
+                    fReal z_kp1 = z(getIndex(i, j, k + 1));
+
+                    fReal t = q(rowNumber);
+                    t -= Aplusi_ijk * precon_ijk * z_ip1;
+                    t -= Aplusj_ijk * precon_ijk * z_jp1;
+                    t -= Aplusk_ijk * precon_ijk * z_kp1;
+
+                    z(rowNumber) = t * precon_ijk;
+                }
+            }
+        }
+    }
+}
+
+void SmokeSolver::computePreconditioner()
+{
+    fReal tC = 0.97;
+    for(size_t i = 1; i < Nx - 1; ++i)
+    {
+        for(size_t j = 1; j < Ny - 1; ++j)
+        {
+            for(size_t k = 1; k < Nz - 1; ++k)
+            {
+                if(getGridTypeAt(i, j, k) == SMOKE)
+                {
+                    size_t rowNumber = getIndex(i, j, k);
+                    fReal e = Laplacian.coeffRef(rowNumber, rowNumber);
+                    fReal Aplusi_im1 = Laplacian.coeffRef(getIndex(i - 1, j, k), getIndex(i + 1, j, k));
+                    fReal Aplusi_jm1 = Laplacian.coeffRef(getIndex(i, j - 1, k), getIndex(i + 1, j, k));
+                    fReal Aplusi_km1 = Laplacian.coeffRef(getIndex(i, j, k - 1), getIndex(i + 1, j, k));
+
+                    fReal Aplusj_im1 = Laplacian.coeffRef(getIndex(i - 1, j, k), getIndex(i, j + 1, k));
+                    fReal Aplusj_jm1 = Laplacian.coeffRef(getIndex(i, j - 1, k), getIndex(i, j + 1, k));
+                    fReal Aplusj_km1 = Laplacian.coeffRef(getIndex(i, j, k - 1), getIndex(i, j + 1, k));
+
+                    fReal Aplusk_im1 = Laplacian.coeffRef(getIndex(i - 1, j, k), getIndex(i, j, k + 1));
+                    fReal Aplusk_jm1 = Laplacian.coeffRef(getIndex(i, j - 1, k), getIndex(i, j, k + 1));
+                    fReal Aplusk_km1 = Laplacian.coeffRef(getIndex(i, j, k - 1), getIndex(i, j, k + 1));
+
+                    fReal precon_im1 = precon(getIndex(i - 1, j, k));
+                    fReal precon_jm1 = precon(getIndex(i, j - 1, k));
+                    fReal precon_km1 = precon(getIndex(i, j, k - 1));
+
+                    e -= pow(Aplusi_im1 * precon_im1, 2.0);
+                    e -= pow(Aplusj_jm1 * precon_jm1, 2.0);
+                    e -= pow(Aplusk_km1 * precon_km1, 2.0);
+                    e -= tC * Aplusi_im1 * (Aplusj_im1 + Aplusk_im1) * precon_im1 * precon_im1;
+                    e -= tC * Aplusj_jm1 * (Aplusi_jm1 + Aplusk_jm1) * precon_jm1 * precon_jm1;
+                    e -= tC * Aplusk_km1 * (Aplusi_km1 + Aplusj_km1) * precon_km1 * precon_km1;
+
+                    precon(rowNumber) = 1.0 / sqrt(e + 1E-30);
+                }
+            }
+        }
+    }
 }
 
 void SmokeSolver::testLaplacian()
@@ -945,6 +1119,11 @@ gridType SmokeSolver::getGridTypeAt(fReal x, fReal y, fReal z)
 
 size_t SmokeSolver::getIndex(size_t x, size_t y, size_t z)
 {
+    // *HACK* should handle negative value calls
+    if(x < 0 || y < 0 || z < 0)
+    {
+        return 0;
+    }
     return (z * (this->Nx * this->Ny)) + (y * this->Nx) + x;
 }
 
