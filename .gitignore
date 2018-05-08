@@ -45,11 +45,13 @@ CTestTestfile.cmake
 cmake-build-debug/*
 output/*
 renders/*
+renders2/*
 particles/*
 particles2/*
 particles3/*
 grid/*
 backup/*
+
 
 .DS_Store
 

@@ -1,6 +1,6 @@
 # pragma once
 
-//# define PARTIO
+# define PARTIO
 # include <string>
 # include <map>
 # include <iostream>

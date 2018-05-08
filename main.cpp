@@ -5,9 +5,9 @@
 
 /* grid specs */
 // recommend odd numbers for centrally placed sources
-const size_t Nx = 21;
-const size_t Ny = 21;
-const size_t Nz = 21;
+const size_t Nx = 25;
+const size_t Ny = 25;
+const size_t Nz = 25;
 /* for a 1x1x1 cube */
 const fReal h = 1.0 / static_cast <fReal> (Nx);
 
@@ -30,7 +30,7 @@ const fReal alpha = 0.08;
 const fReal beta = 0.37;
 //const fReal beta = 0.17;
 /* vorticity gain */
-const fReal epsilon = 0.03;
+const fReal epsilon = 0.02;
 
 // NOTE: Sources defined in SmokeSolver > setSources()
 
@@ -47,8 +47,16 @@ int main(int argc, char** argv)
     SmokeParticles particles(h);
     // SmokeParticles particles2(h);
 
-    particles.addParticles(Nx / 2, 2, Nz / 2, particleRate);
-    // particles2.addParticles(3 * Nx / 5, 2, 3 * Nz / 5, particleRate);
+    size_t Sx1 = Nx / 2;
+    size_t Sy1 = 2;
+    size_t Sz1 = Nz / 2;
+
+    size_t Sx2 = 3 * Nx / 5;
+    size_t Sy2 = 2;
+    size_t Sz2 = 3 * Nz / 5;
+
+    particles.addParticles(Sx1, Sy1, Sz1, particleRate);
+    // particles2.addParticles(Sx2, Sy2, Sz2, particleRate);
 
 # ifdef PARTIO
     particles.write_data_bgeo(filepathP, 1);
@@ -69,17 +77,17 @@ int main(int argc, char** argv)
         while(T < i*DT){
             solver.step(dt);
             particles.updateParticles(u, v, w, dt);
-            particles.addParticles(Nx / 2, 2, Nz / 2, particleRate);
+            particles.addParticles(Sx1, Sy1, Sz1, particleRate);
             // particles2.updateParticles(u, v, w, dt);
-            // particles2.addParticles(3 * Nx / 5, 2, 3 * Nz / 5, particleRate);
+            // particles2.addParticles(Sx2, Sy2, Sz2, particleRate);
 
             T += dt;
         }
         solver.step(dt + i*DT - T);
         particles.updateParticles(u, v, w, dt);
-        particles.addParticles(Nx / 2, 2, Nz / 2, particleRate);
+        particles.addParticles(Sx1, Sy1, Sz1, particleRate);
         // particles2.updateParticles(u, v, w, dt);
-        // particles2.addParticles(3 * Nx / 5, 2, 3 * Nz / 5, particleRate);
+        // particles2.addParticles(Sx2, Sy2, Sz2, particleRate);
 
         T = i*DT;
         
@@ -89,7 +97,7 @@ int main(int argc, char** argv)
         particles.write_data_bgeo(filepathP, i);
         // particles2.write_data_bgeo(filepathP2, i);
 
-        solver.write_data_bgeo(filepathG, i);
+        // solver.write_data_bgeo(filepathG, i);
 # endif
     }
     return 0;

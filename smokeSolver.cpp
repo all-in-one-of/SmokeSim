@@ -375,8 +375,8 @@ void SmokeSolver::projection(fReal dt)
     updateVelWithPressure(w, p, scaleP);
 
     // TEST divergence free condition
-    // fillDivergence(b, uSolid, vSolid, wSolid);
-    // testDivergenceFree(b);
+    fillDivergence(b, uSolid, vSolid, wSolid);
+    testDivergenceFree(b);
 
     u->swapBuffer();
     v->swapBuffer();
@@ -515,7 +515,7 @@ void SmokeSolver::testDivergenceFree(Eigen::VectorXd& b)
     size_t size = Nx * Ny * Nz;
     for(size_t i = 0; i < size; ++i)
     {
-        if(b(i) > 0.5){
+        if(b(i) > 0.2){
             std::cout << "error: divergence of " << b(i) << std::endl;
         }
     }
@@ -586,16 +586,20 @@ void SmokeSolver::precomputeLaplacian()
 
 void SmokeSolver::PCG(Eigen::VectorXd& p, Eigen::VectorXd& b)
 {
+    p.setZero();
     // tolerance for PCG solver
-    fReal tol = 1E-5;
+    fReal tol = 1E-6;
     // residual vector
     Eigen::VectorXd r(Nx * Ny * Nz);
     r = b;
+    if(r.dot(r) < 1E-9){
+        return;
+    }
+
     // auxilliary vector
     Eigen::VectorXd z(Nx * Ny * Nz);
-    // for now, but replace with:
-    applyPreconditioner(z, r);
     z.setZero();
+    applyPreconditioner(z, r);
     // search vector
     Eigen::VectorXd s(Nx * Ny * Nz);
     s = z;
@@ -603,7 +607,7 @@ void SmokeSolver::PCG(Eigen::VectorXd& p, Eigen::VectorXd& b)
     fReal sigma = z.dot(r);
     // maximum number of iterations for convergence
     size_t length = Nx * Ny * Nz;
-    size_t maxIterations = 2 * length;
+    size_t maxIterations = 50;
 
     for(size_t i = 0; i < maxIterations; ++i)
     {
@@ -612,7 +616,7 @@ void SmokeSolver::PCG(Eigen::VectorXd& p, Eigen::VectorXd& b)
         fReal gamma = sigma / temp;
         p = p + gamma * s;
         r = r - gamma * z;
-        fReal maxR = 0;
+        fReal maxR = 0.0;
         for(int j = 0; j < length; ++j)
         {
             if(std::abs(r(j)) > maxR)
@@ -630,7 +634,7 @@ void SmokeSolver::PCG(Eigen::VectorXd& p, Eigen::VectorXd& b)
         s = z + lambda * s;
         sigma = sigmaNew;
     }
-    std::cout << "iteration limit exceeded!" << std::endl;
+    //std::cout << "iteration limit exceeded!" << std::endl;
     return;
 }
 
@@ -741,7 +745,7 @@ void SmokeSolver::computePreconditioner()
                     e -= tC * Aplusj_jm1 * (Aplusi_jm1 + Aplusk_jm1) * precon_jm1 * precon_jm1;
                     e -= tC * Aplusk_km1 * (Aplusi_km1 + Aplusj_km1) * precon_km1 * precon_km1;
 
-                    precon(rowNumber) = 1.0 / sqrt(e + 1E-30);
+                    precon(rowNumber) = 1.0 / sqrt(e + 1E-10);
                 }
             }
         }
